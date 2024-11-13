@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Scanner</title>
+    <style>
+        #preview {
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid black;
+        }
+        #output {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        #status {
+            font-weight: bold;
+            color: blue;
+        }
+        #toggleButton {
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Barcode Scanner</h1>
+    <!-- Video element to display the camera feed -->
+    <video id="preview" autoplay></video>
+    <!-- Button to toggle invert camera view -->
+    <button id="toggleButton">Toggle Mirror View</button>
+    <!-- Div to display scanning status and results -->
+    <div id="output">
+        <p id="status">Initializing camera...</p>
+        <p id="scanned-result"></p>
+    </div>
+
+    <!-- ZXing Library for barcode scanning -->
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+
+    <script>
+        // Sample data associating food IDs with allergen information
+        const allergenData = {
+            "1": "Peanuts (Allergen: Peanut Allergy)",
+            "2": "Milk (Allergen: Dairy Allergy)",
+            "3": "Wheat (Allergen: Gluten Allergy)",
+            "4": "Tofu (Safe for vegan and vegetarian diets)",
+            "5": "Lettuce (No known allergens)"
+        };
+
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        const videoElement = document.getElementById('preview');
+        const output = document.getElementById('output');
+        const statusElement = document.getElementById('status');
+        const scannedResultElement = document.getElementById('scanned-result');
+        const toggleButton = document.getElementById('toggleButton');
+
+        let isMirrored = false;
+
+        // Toggle function for mirroring the camera view
+        toggleButton.addEventListener('click', () => {
+            isMirrored = !isMirrored;
+            videoElement.style.transform = isMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+            toggleButton.innerText = isMirrored ? 'Switch to Normal View' : 'Toggle Mirror View';
+        });
+
+        // Access the camera and display video feed
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                videoElement.srcObject = stream;
+                statusElement.innerText = "Camera initialized. Ready to scan.";
+
+                // Start scanning for barcodes in the video feed
+                codeReader.decodeFromVideoDevice(null, 'preview', (result, err) => {
+                    if (result) {
+                        const foodId = result.text.trim();
+                        statusElement.innerText = "Barcode detected!";
+                        scannedResultElement.innerHTML = `<strong>Scanned ID:</strong> ${foodId}`;
+
+                        // Look up allergen information based on food ID
+                        if (allergenData[foodId]) {
+                            scannedResultElement.innerHTML += `<br><strong>Food Information:</strong> ${allergenData[foodId]}`;
+                        } else {
+                            scannedResultElement.innerHTML += "<br><strong>Food not found</strong>";
+                        }
+
+                        // Reset status after a few seconds
+                        setTimeout(() => {
+                            statusElement.innerText = "Ready to scan";
+                        }, 2000);
+                    }
+
+                    // Handle errors (ignoring "NotFoundException" to reduce noise)
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error("Barcode reading error:", err);
+                        statusElement.innerText = "Error reading barcode";
+                        scannedResultElement.innerText = `Error: ${err.message}`;
+                    }
+                });
+            })
+            .catch((err) => {
+                // Handle camera access errors
+                console.error("Error accessing the camera:", err);
+                statusElement.innerText = "Unable to access the camera. Please check permissions and try again.";
+            });
+    </script>
+</body>
+</html>
